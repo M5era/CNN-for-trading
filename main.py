@@ -61,6 +61,7 @@ def create_labels(self, df, col_name, window_size=11):
 
 
 
+
 if __name__ == "__main__":
     print("go")
 
