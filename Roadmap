@@ -1,0 +1,11 @@
+2DO:
+
+- add SMA(?) Oil price as feature
+- backtesting mit backtrader
+    -> Output from the model = Classification: BUY, HOLD, SELL
+    -> What to do with Output?
+
+
+Consideration:
+- different visualisation/ image generation method
+- consider GDP as feature
