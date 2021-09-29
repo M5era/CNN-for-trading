@@ -1,36 +1,20 @@
-#
-# Copyright (c) 2020. Asutosh Nayak (nayak.asutosh@ymail.com)
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-
-
 """
 Utility functions
 """
 import re
-import time
-import numpy as np
 import urllib.request
 import shutil
 import os
-import pandas as pd
 from PIL import Image
 from ta.momentum import *
 from ta.trend import *
 from ta.volume import *
-from ta.others import *
 from ta.volatility import *
 from tqdm.auto import tqdm
 from stockstats import StockDataFrame as sdf
-from ta import *
-from matplotlib import pyplot as plt
-#import winsound
+import matplotlib.pyplot as plt
 import time
+import yfinance as yf
 
 
 def seconds_to_minutes(seconds):
@@ -57,12 +41,23 @@ def download_save(url, path_to_save, logger=None):
     else:
         print(path_to_save + " downloaded and saved")
 
+def download(url, path):
+    print("Starting download " + url)
 
-def remove_dir(path):
-    shutil.rmtree(path)
-    print(path, "deleted")
-    # os.rmdir(path)
 
+def download_financial_data(symbol, path_to_save_file):
+    print("Starting download " + symbol)
+    ticker = yf.Ticker(symbol)
+    df = ticker.history(period="max")
+    cols_to_delete = ['Dividends', 'Stock Splits']
+    for c in cols_to_delete:
+        if c in df.columns:
+            df.drop(axis=1, columns=c, inplace=True)
+
+    df.reset_index(inplace=True)
+    df = df.rename(columns={'Date': 'timestamp', 'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close',
+                            'Volume': 'volume'})
+    df.to_csv(path_to_save_file)
 
 def save_array_as_images(x, img_width, img_height, path, file_names):
     if os.path.exists(path):
@@ -140,20 +135,131 @@ def col1_gt_col2(col1, col2, df):
     print(df.iloc[compare_series[compare_series == True].index])
 
 
-def sound_alert(repeat_count=5):
-    duration = 1000  # millisecond
-    freq = 440  # Hz
-    for i in range(0, repeat_count):
-        #winsound.Beep(freq, duration)
-        time.sleep(1)
-
-
 def console_pretty_print_df(df):
     with pd.option_context('display.max_rows', None, 'display.max_columns', None):  # more options can be specified also
         print(df)
 
+def create_labels(df, col_name, window_size=11):
+    """
+    Data is labeled as per the logic in research paper
+    Label code : BUY => 1, SELL => 0, HOLD => 2
+
+    params :
+        df => Dataframe with data
+        col_name => name of column which should be used to determine strategy
+
+    returns : numpy array with integer codes for labels with
+              size = total-(window_size)+1
+    """
+
+    print("creating label with bazel's strategy")
+    row_counter = 0
+    total_rows = len(df)
+    labels = np.zeros(total_rows)
+    labels[:] = np.nan
+    print("Calculating labels")
+    pbar = tqdm(total=total_rows)
+
+    while row_counter < total_rows:
+        if row_counter >= window_size - 1:
+            window_begin = row_counter - (window_size - 1)
+            window_end = row_counter
+            window_middle = int((window_begin + window_end) / 2)
+
+            min_ = np.inf
+            min_index = -1
+            max_ = -np.inf
+            max_index = -1
+            for i in range(window_begin, window_end + 1):
+                price = df.iloc[i][col_name]
+                if price < min_:
+                    min_ = price
+                    min_index = i
+                if price > max_:
+                    max_ = price
+                    max_index = i
+
+            if max_index == window_middle:
+                labels[window_middle] = 0
+            elif min_index == window_middle:
+                labels[window_middle] = 1
+            else:
+                labels[window_middle] = 2
+
+        row_counter = row_counter + 1
+        pbar.update(1)
+
+    pbar.close()
+    return labels
+
+def create_label_short_long_ma_crossover(df, short, long):
+    """
+    if short = 30 and long = 90,
+    Buy when 30 day MA < 90 day MA
+    Sell when 30 day MA > 90 day MA
+
+    Label code : BUY => 1, SELL => 0, HOLD => 2
+
+    params :
+        df => Dataframe with data
+        col_name => name of column which should be used to determine strategy
+
+    returns : numpy array with integer codes for labels
+    """
+
+    print("creating label with {}_{}_ma".format(short, long))
+
+    def detect_crossover(diff_prev, diff):
+        if diff_prev >= 0 > diff:
+            # buy
+            return 1
+        elif diff_prev <= 0 < diff:
+            return 0
+        else:
+            return 2
+
+    get_SMA(df, 'close', [short, long])
+    labels = np.zeros((len(df)))
+    labels[:] = np.nan
+    diff = df['close_sma_' + str(short)] - df['close_sma_' + str(long)]
+    diff_prev = diff.shift()
+    df['diff_prev'] = diff_prev
+    df['diff'] = diff
+
+    res = df.apply(lambda row: detect_crossover(row['diff_prev'], row['diff']), axis=1)
+    print("labels count", np.unique(res, return_counts=True))
+    df.drop(columns=['diff_prev', 'diff'], inplace=True)
+    return res
 
 ############### Technical indicators ########################
+
+def calculate_technical_indicators(df, col_name, intervals):
+    # get_RSI(df, col_name, intervals)  # faster but non-smoothed RSI
+    get_RSI_smooth(df, col_name, intervals)  # momentum
+    get_williamR(df, col_name, intervals)  # momentum
+    get_mfi(df, intervals)  # momentum
+    # get_MACD(df, col_name, intervals)  # momentum, ready to use +3
+    # get_PPO(df, col_name, intervals)  # momentum, ready to use +1
+    get_ROC(df, col_name, intervals)  # momentum
+    get_CMF(df, col_name, intervals)  # momentum, volume EMA
+    get_CMO(df, col_name, intervals)  # momentum
+    get_SMA(df, col_name, intervals)
+    get_SMA(df, 'open', intervals)
+    get_EMA(df, col_name, intervals)
+    get_WMA(df, col_name, intervals)
+    get_HMA(df, col_name, intervals)
+    get_TRIX(df, col_name, intervals)  # trend
+    get_CCI(df, col_name, intervals)  # trend
+    get_DPO(df, col_name, intervals)  # Trend oscillator
+    get_kst(df, col_name, intervals)  # Trend
+    get_DMI(df, col_name, intervals)  # trend
+    get_BB_MAV(df, col_name, intervals)  # volatility
+    # get_PSI(df, col_name, intervals)  # can't find formula
+    get_force_index(df, intervals)  # volume
+    get_kdjk_rsv(df, intervals)  # ready to use, +2*len(intervals), 2 rows
+    get_EOM(df, col_name, intervals)  # volume momentum
+    get_volume_delta(df)  # volume +1
+    get_IBR(df)  # ready to use +1
 
 
 # not used

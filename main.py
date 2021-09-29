@@ -1,12 +1,9 @@
 import numpy as np
 import tqdm
 import pandas as pd
-from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
-from operator import itemgetter
-from sklearn.feature_selection import SelectKBest, f_classif, mutual_info_classif
 
-from collections import Counter
 
 def create_labels(self, df, col_name, window_size=11):
     """

@@ -1,27 +1,18 @@
-
-import os
-import re
 from operator import itemgetter
-
-import pandas as pd
-import pickle
-import numpy as np
 from sklearn.feature_selection import SelectKBest, f_classif, mutual_info_classif
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 from sklearn.utils import compute_class_weight
-from tqdm.auto import tqdm
 from logger import Logger
 from secrets import api_key
 from utils import *
-
 
 class DataGenerator:
     def __init__(self, company_code, data_path='./stock_history', output_path='./outputs', strategy_type='original',
                  update=False, logger: Logger = None):
         self.company_code = company_code
+        self.data_path = data_path+"/"+company_code+"/"+company_code+".csv"
         self.strategy_type = strategy_type
-        self.data_path = data_path
         self.logger = logger
         self.BASE_URL = "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED" \
                         "&outputsize=full&apikey=" + api_key + "&datatype=csv&symbol="  # api key from alpha vantage service
