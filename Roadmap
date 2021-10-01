@@ -1,4 +1,4 @@
-2DO:
+TODO:
 
 - rewrite download_save in utils DONE
 
@@ -13,3 +13,24 @@
 
 Consideration:
 - different visualisation/ image generation method
+
+
+
+
+-------------------
+
+Alle eigenen Algorithmus und selber ETF?
+Oder eigener Algorithmus und mehrere ETFs, dann vergleichen welche Sparte am besten zu predicten ist?
+Gleicher algo, mehrere ETFs?
+
+Wie soll paper im genauen aussehen? Aufbau?
+
+- Kein literature review
+- 15 seiten individual:
+    - was genau soll da drinnen stehen?
+    - Method, Datasets, ?
+- 10 Seiten group/bzw 60 insgesamt:
+    - Sparten/ Algorithmen vergleichen?
+    - Conclusion?
+    - kommen alle 60 in mein paper hinein?
+

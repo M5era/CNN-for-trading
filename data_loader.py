@@ -1,4 +1,3 @@
-from secrets import api_key
 import os
 import pandas as pd
 from utils import calculate_technical_indicators, create_labels, create_label_short_long_ma_crossover, download_financial_data
@@ -16,8 +15,6 @@ class DataLoader:
         self.strategy = strategy
         self.update = update
 
-        self.BASE_URL = "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED" \
-                        "&outputsize=full&apikey=" + api_key + "&datatype=csv&symbol="  # api key from alpha vantage API
         self.start_col = 'open'
         self.end_col = 'eom_26'
         self.download_stock_data()
@@ -40,7 +37,7 @@ class DataLoader:
             df.sort_values('timestamp', inplace=True)
             df.reset_index(drop=True, inplace=True)
             intervals = range(6, 27)  # 21
-            calculate_technical_indicators(df, 'close', intervals)
+            calculate_technical_indicators(df, 'open', intervals)
             print("Saving dataframe...")
             df.to_csv(os.path.join(self.output_folder, "df_" + self.symbol+".csv"), index=False)
         else:
@@ -68,9 +65,7 @@ class DataLoader:
             df.reset_index(drop=True, inplace=True)
             print("Dropped {0} nan rows after label calculation".format(prev_len - len(df)))
             if 'dividend_amount' in df.columns:
-                df.drop(columns=['dividend_amount'], inplace=True)
-            if 'split_coefficient' in df.columns:
-                df.drop(columns=['split_coefficient'], inplace=True)
+                df.drop(columns=['dividend_amount', 'split_coefficient'], inplace=True)
             df.to_csv(os.path.join(self.output_folder, "df_" + self.symbol + ".csv"), index=False)
         else:
             print("labels already calculated")
@@ -78,7 +73,7 @@ class DataLoader:
         print("Number of Technical indicator columns for train/test are {}".format(len(list(df.columns)[7:])))
         return df
 
-    def df_by_date(self, start_date=None, years=5):
+    def df_by_time_frame(self, start_date=None, years=5):
         if not start_date:
             start_date = self.df.head(1).iloc[0]["timestamp"]
 
@@ -113,7 +108,6 @@ class DataLoader:
             else:
                 print("Auxiliary data {} is already available on disk. Therefore not downloading.".format(symbol))
 
-
     def add_auxiliary_data_to_dataframe(self):
         for symbol in self.auxiliaries:
             symbol_path = self.data_path[:-11] + symbol + "/" + symbol + ".csv"
@@ -121,15 +115,18 @@ class DataLoader:
                 print('Merging dataframes from {} and auxiliary {}'.format(self.symbol, symbol))
                 df = pd.read_csv(symbol_path)
                 df['timestamp'] = pd.to_datetime(df['timestamp'])
-                merged = self.df.merge(df, how='left', on='timestamp', suffixes=('', '_y'))
-                merged = merged.drop(axis=1,
-                                     columns=['Unnamed: 0', 'open_y', 'high_y', 'low_y', 'volume_y'])
+                intervals = range(6, 27)  # 21
+                calculate_technical_indicators(df, 'open', intervals)
+                merged = self.df.merge(df, how='left', on='timestamp', suffixes=('', '_'+symbol))
+                if 'Unnamed: 0' in merged.columns:
+                    merged = merged.drop(axis=1, columns=['Unnamed: 0'])
                 self.df = merged.dropna()
+                self.df.to_csv("data/df_"+self.symbol+'_aux.csv')
             else:
-                print("Auxiliary data {} is not available on disk, will be skipped.".format(symbol))
+                print("Auxiliary data {} is not available on disk. Therefore, it will be skipped.".format(symbol))
 
     def feature_selection(self):
-        df_batch = self.df_by_date(None, 10)
+        df_batch = self.df_by_time_frame(None, 10)
         list_features = list(df_batch.loc[:, self.start_col:self.end_col].columns)
         mm_scaler = MinMaxScaler(feature_range=(0, 1))  # or StandardScaler?
         x_train = mm_scaler.fit_transform(df_batch.loc[:, self.start_col:self.end_col].values)

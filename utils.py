@@ -30,21 +30,6 @@ def get_readable_ctime():
     return time.strftime("%d-%m-%Y %H_%M_%S")
 
 
-def download_save(url, path_to_save, logger=None):
-    if logger:
-        logger.append_log("Starting download " + re.sub(r'apikey=[A-Za-z0-9]+&', 'apikey=my_api_key&', url))
-    else:
-        print("Starting download " + re.sub(r'apikey=[A-Za-z0-9]+&', 'apikey=my_api_key&', url))
-    urllib.request.urlretrieve(url, path_to_save)
-    if logger:
-        logger.append_log(path_to_save + " downloaded and saved")
-    else:
-        print(path_to_save + " downloaded and saved")
-
-def download(url, path):
-    print("Starting download " + url)
-
-
 def download_financial_data(symbol, path_to_save_file):
     print("Starting download " + symbol)
     ticker = yf.Ticker(symbol)
@@ -58,6 +43,7 @@ def download_financial_data(symbol, path_to_save_file):
     df = df.rename(columns={'Date': 'timestamp', 'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close',
                             'Volume': 'volume'})
     df.to_csv(path_to_save_file)
+
 
 def save_array_as_images(x, img_width, img_height, path, file_names):
     if os.path.exists(path):
@@ -258,7 +244,7 @@ def calculate_technical_indicators(df, col_name, intervals):
     get_force_index(df, intervals)  # volume
     get_kdjk_rsv(df, intervals)  # ready to use, +2*len(intervals), 2 rows
     get_EOM(df, col_name, intervals)  # volume momentum
-    get_volume_delta(df)  # volume +1
+    #get_volume_delta(df)  # volume +1 #not implemented correctly
     get_IBR(df)  # ready to use +1
 
 
@@ -392,7 +378,7 @@ def get_SMA(df, col_name, intervals):
     print_time("Calculation of SMA Done", stime)
 
 
-def get_EMA(df, col_name, intervals):
+def get_EMA(df, col_name, intervals): # not working?
     """
     Needs validation
     Momentum indicator
@@ -591,7 +577,7 @@ def get_CMO(df, col_name, intervals):
     print_time("Calculation of CMO Done", stime)
 
 
-# not used. on close(12,16): +3, ready to use
+# not used. on close(12,16): +3, ready to use --> TRY THIS
 def get_MACD(df):
     """
     Not used
@@ -736,7 +722,7 @@ def get_EOM(df, col_name, intervals):
 
 
 # not used. +1
-def get_volume_delta(df):
+def get_volume_delta(df):  # not properly implemented
     stime = time.time()
     print("Calculating volume delta")
     df_ss = sdf.retype(df)
@@ -754,3 +740,20 @@ def get_kdjk_rsv(df, intervals):
         df['kdjk_' + str(i)] = df_ss['kdjk_' + str(i)]
 
     print_time("Calculation of EMA Done", stime)
+
+
+def get_BBANDS(df):  # TODO
+    """https://www.investopedia.com/articles/technical/04/030304.asp"""
+
+
+def get_ADX(df):  # TODO
+    """https://www.fmlabs.com/reference/default.htm?url=ADX.htm"""
+
+
+def get_chaikin_ad(df):  # TODO
+    """https://www.fmlabs.com/reference/default.htm?url=AccumDist.htm
+    https://www.investopedia.com/articles/active-trading/031914/understanding-chaikin-oscillator.asp"""
+
+
+def get_OBV(df):  # TODO
+    """https://www.investopedia.com/articles/technical/100801.asp"""
