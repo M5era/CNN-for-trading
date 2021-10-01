@@ -1,6 +1,7 @@
 import os
 import pandas as pd
-from utils import calculate_technical_indicators, create_labels, create_label_short_long_ma_crossover, download_financial_data
+from utils import create_labels, create_label_short_long_ma_crossover, download_financial_data
+from technical_indicators import calculate_technical_indicators
 import re
 from sklearn.preprocessing import OneHotEncoder, MinMaxScaler
 from sklearn.feature_selection import SelectKBest, f_classif, mutual_info_classif
@@ -30,7 +31,7 @@ class DataLoader:
         print("{} has data for {} to {}".format(data_folder, self.batch_start_date,
                                                                  self.df.tail(1).iloc[0]['timestamp']))
 
-    def create_dataframe(self):
+    def create_dataframe(self):   # TODO rewrite
         if not os.path.exists(os.path.join(self.output_folder, "df_" + self.symbol+".csv")) or self.update:
             df = pd.read_csv(self.data_path)
             df['timestamp'] = pd.to_datetime(df['timestamp'])
@@ -73,7 +74,7 @@ class DataLoader:
         print("Number of Technical indicator columns for train/test are {}".format(len(list(df.columns)[7:])))
         return df
 
-    def df_by_time_frame(self, start_date=None, years=5):
+    def df_by_time_frame(self, start_date=None, years=5):  # TODO rewrite
         if not start_date:
             start_date = self.df.head(1).iloc[0]["timestamp"]
 
@@ -87,10 +88,10 @@ class DataLoader:
         if not os.path.exists(parent_folder):
             os.makedirs(parent_folder)
         if not os.path.exists(self.data_path):
-            print('Downloading historical stock data of {}.'.format(self.symbol))
+            print('Downloading historical data of {}.'.format(self.symbol))
             download_financial_data(self.symbol, self.data_path)
         else:
-            print("Historical stock data {} is already available on disk. Therefore not downloading.".format(
+            print("Historical data {} is already available on disk. Therefore not downloading.".format(
                 self.symbol))
 
     def download_auxiliary_data(self):
@@ -125,7 +126,7 @@ class DataLoader:
             else:
                 print("Auxiliary data {} is not available on disk. Therefore, it will be skipped.".format(symbol))
 
-    def feature_selection(self):
+    def feature_selection(self):   # TODO rewrite
         df_batch = self.df_by_time_frame(None, 10)
         list_features = list(df_batch.loc[:, self.start_col:self.end_col].columns)
         mm_scaler = MinMaxScaler(feature_range=(0, 1))  # or StandardScaler?
