@@ -1,5 +1,5 @@
 from data_loader import DataLoader
 print("running main.py")
-company_code = "XLE"
+etf_symbol = "XLE"
 
-DataLoader(company_code)
+DataLoader(etf_symbol, auxiliary_symbols=["CL=F", "EURUSD=X"])

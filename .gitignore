@@ -112,3 +112,11 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# data folders
+data/*
+historical_data/*
+best_model_keras/*
+
+# team stuff
+TechnicalIndicators.ipynb

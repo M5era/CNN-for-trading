@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from utils import create_labels, create_label_short_long_ma_crossover, download_financial_data
+from utils import create_labels, download_financial_data
 from technical_indicators import calculate_technical_indicators
 import re
 from sklearn.preprocessing import OneHotEncoder, MinMaxScaler
@@ -9,20 +9,19 @@ from operator import itemgetter
 
 
 class DataLoader:
-    def __init__(self, symbol, data_folder="historical_data", output_folder="data", strategy="bazel", update=False):
+    def __init__(self, symbol, data_folder="historical_data", output_folder="data", auxiliary_symbols=[]):
         self.symbol = symbol
+        self.data_folder = data_folder
         self.data_path = data_folder+"/"+symbol+"/"+symbol+".csv"
         self.output_folder = output_folder
-        self.strategy = strategy
-        self.update = update
-
         self.start_col = 'open'
         self.end_col = 'eom_26'
         self.download_stock_data()
-        self.auxiliaries = ["CL=F"]
-        self.download_auxiliary_data()
         self.df = self.create_dataframe()
-        self.add_auxiliary_data_to_dataframe()
+        self.auxiliary_symbols = auxiliary_symbols
+        if len(self.auxiliary_symbols) > 0:
+            self.download_auxiliary_data()
+            self.add_auxiliary_data_to_dataframe()
         self.feat_idx = self.feature_selection()
         self.one_hot_enc = OneHotEncoder(sparse=False, categories='auto')
         self.one_hot_enc.fit(self.df['labels'].values.reshape(-1, 1))
@@ -32,7 +31,7 @@ class DataLoader:
                                                                  self.df.tail(1).iloc[0]['timestamp']))
 
     def create_dataframe(self):   # TODO rewrite
-        if not os.path.exists(os.path.join(self.output_folder, "df_" + self.symbol+".csv")) or self.update:
+        if not os.path.exists(os.path.join(self.output_folder, "df_" + self.symbol+".csv")):
             df = pd.read_csv(self.data_path)
             df['timestamp'] = pd.to_datetime(df['timestamp'])
             df.sort_values('timestamp', inplace=True)
@@ -53,14 +52,8 @@ class DataLoader:
         df.reset_index(drop=True, inplace=True)
         print("Dropped {0} nan rows before label calculation".format(prev_len - len(df)))
 
-        if 'labels' not in df.columns or self.update:
-            if re.match(r"\d+_\d+_ma", self.strategy):
-                short = self.strategy.split('_')[0]
-                long = self.strategy.split('_')[1]
-                df['labels'] = create_label_short_long_ma_crossover(df, short, long)
-            else:
-                df['labels'] = create_labels(df, 'close')
-
+        if 'labels' not in df.columns:
+            df['labels'] = create_labels(df, 'close')
             prev_len = len(df)
             df.dropna(inplace=True)
             df.reset_index(drop=True, inplace=True)
@@ -73,14 +66,6 @@ class DataLoader:
 
         print("Number of Technical indicator columns for train/test are {}".format(len(list(df.columns)[7:])))
         return df
-
-    def df_by_time_frame(self, start_date=None, years=5):  # TODO rewrite
-        if not start_date:
-            start_date = self.df.head(1).iloc[0]["timestamp"]
-
-        end_date = start_date + pd.offsets.DateOffset(years=years)
-        df_batch = self.df[(self.df["timestamp"] >= start_date) & (self.df["timestamp"] <= end_date)]
-        return df_batch
 
     def download_stock_data(self):
         print("path to {} data: {}".format(self.symbol, self.data_path))
@@ -95,7 +80,7 @@ class DataLoader:
                 self.symbol))
 
     def download_auxiliary_data(self):
-        for symbol in self.auxiliaries:
+        for symbol in self.auxiliary_symbols:
             symbol_path = self.data_path[:-11]+symbol+"/"+symbol+".csv"
             print("path to {} data: {}".format(symbol, symbol_path))
             parent_folder = os.sep.join(symbol_path.split(os.sep)[:-1])
@@ -110,24 +95,50 @@ class DataLoader:
                 print("Auxiliary data {} is already available on disk. Therefore not downloading.".format(symbol))
 
     def add_auxiliary_data_to_dataframe(self):
-        for symbol in self.auxiliaries:
-            symbol_path = self.data_path[:-11] + symbol + "/" + symbol + ".csv"
-            if os.path.exists(symbol_path):
-                print('Merging dataframes from {} and auxiliary {}'.format(self.symbol, symbol))
-                df = pd.read_csv(symbol_path)
-                df['timestamp'] = pd.to_datetime(df['timestamp'])
-                intervals = range(6, 27)  # 21
-                calculate_technical_indicators(df, 'open', intervals)
-                merged = self.df.merge(df, how='left', on='timestamp', suffixes=('', '_'+symbol))
+        for aux in self.auxiliary_symbols:
+            aux_path = os.path.join(self.data_folder, aux, aux + ".csv")
+            aux_output_path = os.path.join(self.output_folder, "df_" + aux + '.csv')
+
+            if os.path.exists(aux_path):
+                print('Merging dataframes from {} and auxiliary {}'.format(self.symbol, aux))
+                if not os.path.exists(aux_output_path):
+                    df = pd.read_csv(aux_path)
+                    df['timestamp'] = pd.to_datetime(df['timestamp'])
+                    intervals = range(6, 27)  # 21
+                    calculate_technical_indicators(df, 'open', intervals)
+                    df.to_csv(aux_output_path)
+                else:
+                    print("Technical indicators for auxiliary data {} already calculated. Will load from disk.".format(
+                        aux))
+                    df = pd.read_csv(aux_output_path)
+                    df['timestamp'] = pd.to_datetime(df['timestamp'])
+                merged = self.df.merge(df, how='left', on='timestamp', suffixes=('', '_'+aux))
                 if 'Unnamed: 0' in merged.columns:
                     merged = merged.drop(axis=1, columns=['Unnamed: 0'])
                 self.df = merged.dropna()
-                self.df.to_csv("data/df_"+self.symbol+'_aux.csv')
             else:
-                print("Auxiliary data {} is not available on disk. Therefore, it will be skipped.".format(symbol))
+                print("Auxiliary data {} is not available on disk. Therefore, it will be skipped.".format(aux))
+
+        # reorder df so that labels and volume delta are at the end
+        cols = self.df.columns.tolist()
+        cols = [c for c in cols if c != "labels"]
+        cols.append("labels")
+        self.df = self.df[cols]
+        output_path = os.path.join(self.output_folder, "df_" + self.symbol + '_aux.csv')
+        self.df.to_csv(output_path)
+        print("df_{}_aux written to disk.".format(self.symbol))
 
     def feature_selection(self):   # TODO rewrite
-        df_batch = self.df_by_time_frame(None, 10)
+
+        def df_by_time_frame(start_date=None, years=5):  # TODO rewrite
+            if not start_date:
+                start_date = self.df.head(1).iloc[0]["timestamp"]
+
+            end_date = start_date + pd.offsets.DateOffset(years=years)
+            df_batch = self.df[(self.df["timestamp"] >= start_date) & (self.df["timestamp"] <= end_date)]
+            return df_batch
+
+        df_batch = df_by_time_frame(None, 10)
         list_features = list(df_batch.loc[:, self.start_col:self.end_col].columns)
         mm_scaler = MinMaxScaler(feature_range=(0, 1))  # or StandardScaler?
         x_train = mm_scaler.fit_transform(df_batch.loc[:, self.start_col:self.end_col].values)

@@ -10,19 +10,12 @@ from tqdm.auto import tqdm
 import matplotlib.pyplot as plt
 import time
 import yfinance as yf
-from technical_indicators import get_SMA
-
-def seconds_to_minutes(seconds):
-    return str(seconds // 60) + " minutes " + str(np.round(seconds % 60)) + " seconds"
 
 
-def print_time(text, stime):
-    seconds = (time.time() - stime)
-    print(text, seconds_to_minutes(seconds))
-
-
-def get_readable_ctime():
-    return time.strftime("%d-%m-%Y %H_%M_%S")
+def print_with_timestamp(text, stime):
+    delta_secs = (time.time() - stime)
+    new_time = str(delta_secs // 60) + " mins, " + str(np.round(delta_secs % 60)) + " secs"
+    print(text, new_time)
 
 
 def download_financial_data(symbol, path_to_save_file):
@@ -40,39 +33,47 @@ def download_financial_data(symbol, path_to_save_file):
     df.to_csv(path_to_save_file)
 
 
-def save_array_as_images(x, img_width, img_height, path, file_names):
+def save_array_as_images(x, img_width, img_height, path, file_names):  # TODO rewrite
     if os.path.exists(path):
-        shutil.rmtree(path)
-        print("deleted old files")
-
-    os.makedirs(path)
-    print("Image Directory created", path)
-    x_temp = np.zeros((len(x), img_height, img_width))
-    print("saving images...")
-    stime = time.time()
+        shutil.rmtree(path) #remove folder
+    os.makedirs(path)  # make new folder
+    x_as_images = np.zeros((len(x), img_height, img_width))
     for i in tqdm(range(x.shape[0])):
-        x_temp[i] = np.reshape(x[i], (img_height, img_width))
-        img = Image.fromarray(x_temp[i], 'RGB')
+        x_as_images[i] = np.reshape(x[i], (img_height, img_width))
+        img = Image.fromarray(x_as_images[i], 'RGB')
         img.save(os.path.join(path, str(file_names[i]) + '.png'))
 
-    print_time("Images saved at " + path, stime)
-    return x_temp
+    print_with_timestamp("Images saved at " + path, time.time())
+    return x_as_images
 
 
-def reshape_as_image(x, img_width, img_height):
-    x_temp = np.zeros((len(x), img_height, img_width))
+def reshape_array_as_image(x, img_width, img_height, save_to_disk=False, path="", file_names=None):
+    x_as_images = np.zeros((len(x), img_height, img_width))
     for i in range(x.shape[0]):
-        x_temp[i] = np.reshape(x[i], (img_height, img_width))
+        x_as_images[i] = np.reshape(x[i], (img_height, img_width))
 
-    return x_temp
+    if save_to_disk:
+        if os.path.exists(path):
+            shutil.rmtree(path)  # remove folder including old files
+        os.makedirs(path)  # add new folder
+
+        for i in tqdm(range(x.shape[0])):
+            img = Image.fromarray(x_as_images[i], 'RGB')
+            img.save(os.path.join(path, str(file_names[i]) + '.png'))
+        print_with_timestamp("Images saved at " + path, time.time())
+
+    return x_as_images
 
 
-def show_images(rows, columns, path):
+def show_images(arr, rows, columns, path=None):
     w = 15
     h = 15
     fig = plt.figure(figsize=(15, 15))
     files = os.listdir(path)
     for i in range(1, columns * rows + 1):
+
+        if not path:
+            img = arr[index]
         index = np.random.randint(len(files))
         img = np.asarray(Image.open(os.path.join(path, files[index])))
         fig.add_subplot(rows, columns, i)
@@ -80,24 +81,6 @@ def show_images(rows, columns, path):
         plt.subplots_adjust(wspace=0.5, hspace=0.5)
         plt.imshow(img)
     plt.show()
-
-
-def dict_to_str(d):
-    return str(d).replace("{", '').replace("}", '').replace("'", "").replace(' ', '')
-
-
-def cleanup_file_path(path):
-    return path.replace('\\', '/').replace(" ", "_").replace(':', '_')
-
-
-def white_noise_check(tags_list, logger=None, *pd_series_args):
-    if len(tags_list) != len(pd_series_args):
-        raise Exception("Length of tags_list and series params different. Should be same.")
-    for idx, s in enumerate(pd_series_args):
-        # logger.append_log("1st, 2nd element {}, {}".format(s.iloc[0], s.iloc[1]))
-        m = s.mean()
-        std = s.std()
-        logger.append_log("mean & std for {} is {}, {}".format(tags_list[idx], m, std))
 
 
 def plot(y, title, output_path, x=None):
@@ -111,16 +94,7 @@ def plot(y, title, output_path, x=None):
         plt.savefig(output_path)
 
 
-def col1_gt_col2(col1, col2, df):
-    compare_series = df[col1] > df[col2]
-    print(df.iloc[compare_series[compare_series == True].index])
-
-
-def console_pretty_print_df(df):
-    with pd.option_context('display.max_rows', None, 'display.max_columns', None):  # more options can be specified also
-        print(df)
-
-def create_labels(df, col_name, window_size=11):
+def create_labels(df, col_name, window_size=11):  # TODO: check what this does, rewrite according to BAZEL
     """
     Data is labeled as per the logic in research paper
     Label code : BUY => 1, SELL => 0, HOLD => 2
@@ -134,81 +108,41 @@ def create_labels(df, col_name, window_size=11):
     """
 
     print("creating label with bazel's strategy")
-    row_counter = 0
-    total_rows = len(df)
-    labels = np.zeros(total_rows)
+    counter_row = 0
+    number_of_days_in_File = len(df)
+    labels = np.zeros(number_of_days_in_File)
     labels[:] = np.nan
     print("Calculating labels")
-    pbar = tqdm(total=total_rows)
+    pbar = tqdm(total=number_of_days_in_File)
 
-    while row_counter < total_rows:
-        if row_counter >= window_size - 1:
-            window_begin = row_counter - (window_size - 1)
-            window_end = row_counter
-            window_middle = int((window_begin + window_end) / 2)
+    while counter_row < number_of_days_in_File:
+        counter_row += 1
+        if counter_row > window_size:
+            window_begin_index = counter_row - window_size
+            window_end_index = window_begin_index + window_size - 1
+            window_middle_index = int((window_begin_index + window_end_index) / 2)
 
             min_ = np.inf
             min_index = -1
             max_ = -np.inf
             max_index = -1
-            for i in range(window_begin, window_end + 1):
-                price = df.iloc[i][col_name]
-                if price < min_:
-                    min_ = price
+            for i in range(window_begin_index, window_end_index + 1):
+                number = df.iloc[i][col_name]  # number is the price
+                if number < min_:
+                    min_ = number
                     min_index = i
-                if price > max_:
-                    max_ = price
+                if number > max_:
+                    max_ = number
                     max_index = i
 
-            if max_index == window_middle:
-                labels[window_middle] = 0
-            elif min_index == window_middle:
-                labels[window_middle] = 1
+            if max_index == window_middle_index:
+                labels[window_middle_index] = 0  # SELL
+            elif min_index == window_middle_index:
+                labels[window_middle_index] = 1  # BUY
             else:
-                labels[window_middle] = 2
+                labels[window_middle_index] = 2  # HOLD
 
-        row_counter = row_counter + 1
         pbar.update(1)
 
     pbar.close()
     return labels
-
-
-def create_label_short_long_ma_crossover(df, short, long):
-    """
-    if short = 30 and long = 90,
-    Buy when 30 day MA < 90 day MA
-    Sell when 30 day MA > 90 day MA
-
-    Label code : BUY => 1, SELL => 0, HOLD => 2
-
-    params :
-        df => Dataframe with data
-        col_name => name of column which should be used to determine strategy
-
-    returns : numpy array with integer codes for labels
-    """
-
-    print("creating label with {}_{}_ma".format(short, long))
-
-    def detect_crossover(diff_prev, diff):
-        if diff_prev >= 0 > diff:
-            # buy
-            return 1
-        elif diff_prev <= 0 < diff:
-            return 0
-        else:
-            return 2
-
-    get_SMA(df, 'close', [short, long])
-    labels = np.zeros((len(df)))
-    labels[:] = np.nan
-    diff = df['close_sma_' + str(short)] - df['close_sma_' + str(long)]
-    diff_prev = diff.shift()
-    df['diff_prev'] = diff_prev
-    df['diff'] = diff
-
-    res = df.apply(lambda row: detect_crossover(row['diff_prev'], row['diff']), axis=1)
-    print("labels count", np.unique(res, return_counts=True))
-    df.drop(columns=['diff_prev', 'diff'], inplace=True)
-    return res

@@ -1,5 +1,6 @@
 """Technical indicators"""
 # TODO add source reference github
+# TODO or check out this library: https://github.com/bukosabino/ta
 
 from ta.momentum import *
 from ta.trend import *
@@ -8,7 +9,7 @@ from ta.volatility import *
 from tqdm.auto import tqdm
 from stockstats import StockDataFrame as sdf
 import time
-from utils import print_time
+from utils import print_with_timestamp
 
 
 def calculate_technical_indicators(df, col_name, intervals):
@@ -120,7 +121,7 @@ def get_RSI_smooth(df, col_name, intervals):
         df['rsi_' + str(period)][1:] = res
 
     # df.drop(['diff'], axis = 1, inplace=True)
-    print_time("Calculation of RSI Done", stime)
+    print_with_timestamp("Calculation of RSI Done", stime)
 
 
 # not used: +1, ready to use
@@ -140,7 +141,7 @@ def get_williamR(df, col_name, intervals):
         # df['wr_'+str(i)] = df_ss['wr_'+str(i)]
         df["wr_" + str(i)] = WilliamsRIndicator(df['high'], df['low'], df['close'], i, fillna=True).williams_r()
 
-    print_time("Calculation of WilliamR Done", stime)
+    print_with_timestamp("Calculation of WilliamR Done", stime)
 
 
 def get_mfi(df, intervals):
@@ -152,7 +153,7 @@ def get_mfi(df, intervals):
     print("Calculating MFI")
     for i in tqdm(intervals):
         df['mfi_' + str(i)] = money_flow_index(df['high'], df['low'], df['close'], df['volume'], window=i, fillna=True)
-    print_time("Calculation of MFI done", stime)
+    print_with_timestamp("Calculation of MFI done", stime)
 
 
 def get_SMA(df, col_name, intervals):
@@ -166,7 +167,7 @@ def get_SMA(df, col_name, intervals):
         df[col_name + '_sma_' + str(i)] = df_ss[col_name + '_' + str(i) + '_sma']
         del df[col_name + '_' + str(i) + '_sma']
 
-    print_time("Calculation of SMA Done", stime)
+    print_with_timestamp("Calculation of SMA Done", stime)
 
 
 def get_EMA(df, col_name, intervals): # not working?
@@ -182,7 +183,7 @@ def get_EMA(df, col_name, intervals): # not working?
         del df[col_name + '_' + str(i) + '_ema']
         # df["ema_"+str(intervals[0])+'_1'] = ema_indicator(df['close'], i, fillna=True)
 
-    print_time("Calculation of EMA Done", stime)
+    print_with_timestamp("Calculation of EMA Done", stime)
 
 
 def get_WMA(df, col_name, intervals, hma_step=0):
@@ -220,7 +221,7 @@ def get_WMA(df, col_name, intervals, hma_step=0):
             df['hma_' + str(len(list(filter(re.compile(expr).search, columns))))] = res
 
     if hma_step == 0:
-        print_time("Calculation of WMA Done", stime)
+        print_with_timestamp("Calculation of WMA Done", stime)
 
 
 def get_HMA(df, col_name, intervals):
@@ -260,7 +261,7 @@ def get_HMA(df, col_name, intervals):
         # print("step 3", col, intervals_sqrt[i])
         get_WMA(df, col, [intervals_sqrt[i]], 3)
     df.drop(columns=hma_wma_cols, inplace=True)
-    print_time("Calculation of HMA Done", stime)
+    print_with_timestamp("Calculation of HMA Done", stime)
 
 
 def get_TRIX(df, col_name, intervals):
@@ -278,7 +279,7 @@ def get_TRIX(df, col_name, intervals):
         df['trix_' + str(i)] = trix(df['close'], i, fillna=True)
 
     # df.drop(columns=['trix','trix_6_sma',])
-    print_time("Calculation of TRIX Done", stime)
+    print_with_timestamp("Calculation of TRIX Done", stime)
 
 
 def get_DMI(df, col_name, intervals):
@@ -305,10 +306,11 @@ def get_DMI(df, col_name, intervals):
     drop_columns.extend(list(filter(re.compile(expr1).search, list(df.columns)[9:])))
     drop_columns.extend(list(filter(re.compile(expr2).search, list(df.columns)[9:])))
     df.drop(columns=drop_columns, inplace=True)
-    print_time("Calculation of DMI done", stime)
+    print_with_timestamp("Calculation of DMI done", stime)
 
 
 def get_CCI(df, col_name, intervals):
+
     stime = time.time()
     print("Calculating CCI")
     df_ss = sdf.retype(df)
@@ -316,7 +318,7 @@ def get_CCI(df, col_name, intervals):
         # df['cci_'+str(i)] = df_ss['cci_'+str(i)]
         df['cci_' + str(i)] = cci(df['high'], df['low'], df['close'], i, fillna=True)
 
-    print_time("Calculation of CCI Done", stime)
+    print_with_timestamp("Calculation of CCI Done", stime)
 
 
 def get_BB_MAV(df, col_name, intervals):
@@ -330,7 +332,7 @@ def get_BB_MAV(df, col_name, intervals):
     for i in tqdm(intervals):
         df['bb_' + str(i)] = bollinger_mavg(df['close'], window=i, fillna=True)
 
-    print_time("Calculation of Bollinger Band MAV done", stime)
+    print_with_timestamp("Calculation of Bollinger Band MAV done", stime)
 
 
 def get_CMO(df, col_name, intervals):
@@ -365,7 +367,7 @@ def get_CMO(df, col_name, intervals):
         res = diff.rolling(period).apply(calculate_CMO, args=(period,), raw=False)
         df['cmo_' + str(period)][1:] = res
 
-    print_time("Calculation of CMO Done", stime)
+    print_with_timestamp("Calculation of CMO Done", stime)
 
 
 # not used. on close(12,16): +3, ready to use --> TRY THIS
@@ -385,7 +387,7 @@ def get_MACD(df):
     del df['macd_']
     del df['close_12_ema']
     del df['close_26_ema']
-    print_time("Calculation of MACD done", stime)
+    print_with_timestamp("Calculation of MACD done", stime)
 
 
 # not implemented. period 12,26: +1, ready to use
@@ -415,7 +417,7 @@ def get_PPO(df, col_name, intervals):
     del df['ema_12']
     del df['ema_26']
 
-    print_time("Calculation of PPO Done", stime)
+    print_with_timestamp("Calculation of PPO Done", stime)
 
 
 def get_ROC(df, col_name, intervals):
@@ -444,7 +446,7 @@ def get_ROC(df, col_name, intervals):
         # print(len(df), len(df[period:]), len(res))
         df['roc_' + str(period)] = res
 
-    print_time("Calculation of ROC done", stime)
+    print_with_timestamp("Calculation of ROC done", stime)
 
 
 # not implemented, can't find
@@ -465,7 +467,7 @@ def get_DPO(df, col_name, intervals):
     for i in tqdm(intervals):
         df['dpo_' + str(i)] = dpo(df['close'], window=i)
 
-    print_time("Calculation of DPO done", stime)
+    print_with_timestamp("Calculation of DPO done", stime)
 
 
 def get_kst(df, col_name, intervals):
@@ -477,7 +479,7 @@ def get_kst(df, col_name, intervals):
     print("Calculating KST")
     for i in tqdm(intervals):
         df['kst_' + str(i)] = kst(df['close'], window1=i)
-    print_time("Calculation of KST done", stime)
+    print_with_timestamp("Calculation of KST done", stime)
 
 
 def get_CMF(df, col_name, intervals):
@@ -489,7 +491,7 @@ def get_CMF(df, col_name, intervals):
     print("Calculating CMF")
     for i in tqdm(intervals):
         df['cmf_' + str(i)] = chaikin_money_flow(df['high'], df['low'], df['close'], df['volume'], window=i, fillna=True)
-    print_time("Calculation of CMF done", stime)
+    print_with_timestamp("Calculation of CMF done", stime)
 
 
 def get_force_index(df, intervals):
@@ -497,7 +499,7 @@ def get_force_index(df, intervals):
     print("Calculating Force Index")
     for i in tqdm(intervals):
         df['fi_' + str(i)] = force_index(df['close'], df['volume'], window=5, fillna=True)
-    print_time("Calculation of Force Index done", stime)
+    print_with_timestamp("Calculation of Force Index done", stime)
 
 
 def get_EOM(df, col_name, intervals):
@@ -509,7 +511,7 @@ def get_EOM(df, col_name, intervals):
     print("Calculating EOM")
     for i in tqdm(intervals):
         df['eom_' + str(i)] = ease_of_movement(df['high'], df['low'], df['volume'], window=i, fillna=True)
-    print_time("Calculation of EOM done", stime)
+    print_with_timestamp("Calculation of EOM done", stime)
 
 
 # not used. +1
@@ -519,7 +521,7 @@ def get_volume_delta(df):  # not properly implemented
     df_ss = sdf.retype(df)
     df_ss['volume_delta']
 
-    print_time("Calculation of Volume Delta done", stime)
+    print_with_timestamp("Calculation of Volume Delta done", stime)
 
 
 # not used. +2 for each interval kdjk and rsv
@@ -530,7 +532,7 @@ def get_kdjk_rsv(df, intervals):
     for i in tqdm(intervals):
         df['kdjk_' + str(i)] = df_ss['kdjk_' + str(i)]
 
-    print_time("Calculation of EMA Done", stime)
+    print_with_timestamp("Calculation of EMA Done", stime)
 
 
 def get_BBANDS(df):  # TODO
