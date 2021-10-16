@@ -65,23 +65,38 @@ def reshape_array_as_image(x, img_width, img_height, save_to_disk=False, path=""
     return x_as_images
 
 
-def show_images(arr, rows, columns, path=None):
-    w = 15
-    h = 15
-    fig = plt.figure(figsize=(15, 15))
-    files = os.listdir(path)
-    for i in range(1, columns * rows + 1):
+def show_images(rows, columns, arr=None, path=None):
+    """
+    show images that were generated for the CNN.
 
+    rows: int
+    columns: int
+    arr: np.array
+    path: String
+    """
+
+    if path is None and arr is None:
+        raise AttributeError('Both attributes "arr" and "path" are None. One of them has to be defined.')
+
+    w = h = 15
+    fig = plt.figure(figsize=(w, h))
+
+    for i in range(1, columns * rows + 1):
         if not path:
+            index = np.random.randint(len(arr))
             img = arr[index]
-        index = np.random.randint(len(files))
-        img = np.asarray(Image.open(os.path.join(path, files[index])))
+            title = 'image_'+str(index)
+        else:
+            files = os.listdir(path)
+            index = np.random.randint(len(files))
+            img = np.asarray(Image.open(os.path.join(path, files[index])))
+            title = files[i]
         fig.add_subplot(rows, columns, i)
-        plt.title(files[i], fontsize=10)
-        plt.subplots_adjust(wspace=0.5, hspace=0.5)
+        plt.title(title, fontsize=10)
+        plt.subplots_adjust(wspace=0.2, hspace=0.2)
         plt.imshow(img)
     plt.show()
-
+    return
 
 def plot(y, title, output_path, x=None):
     fig = plt.figure(figsize=(10, 10))
