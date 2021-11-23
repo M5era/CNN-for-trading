@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from utils import create_labels, download_financial_data
+from utils import create_labels, download_financial_data, get_labels_daily_triple_barrier
 from technical_indicators import calculate_technical_indicators
 import re
 from sklearn.preprocessing import OneHotEncoder, MinMaxScaler
@@ -53,7 +53,8 @@ class DataLoader:
         print("Dropped {0} nan rows before label calculation".format(prev_len - len(df)))
 
         if 'labels' not in df.columns:
-            df['labels'] = create_labels(df, 'close')
+            # df['labels'] = create_labels(df, 'close')
+            df['labels'] = get_labels_daily_triple_barrier(df)
             prev_len = len(df)
             df.dropna(inplace=True)
             df.reset_index(drop=True, inplace=True)
