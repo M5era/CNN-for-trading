@@ -165,7 +165,7 @@ def get_SMA(df, col_name, intervals):
     df_ss = sdf.retype(df)
     for i in tqdm(intervals):
         df[col_name + '_sma_' + str(i)] = df_ss[col_name + '_' + str(i) + '_sma']
-        del df[col_name + '_' + str(i) + '_sma']
+        #del df[col_name + '_' + str(i) + '_sma']
 
     print_with_timestamp("Calculation of SMA Done", stime)
 
@@ -180,7 +180,7 @@ def get_EMA(df, col_name, intervals): # not working?
     df_ss = sdf.retype(df)
     for i in tqdm(intervals):
         df['ema_' + str(i)] = df_ss[col_name + '_' + str(i) + '_ema']
-        del df[col_name + '_' + str(i) + '_ema']
+        # del df[col_name + '_' + str(i) + '_ema']
         # df["ema_"+str(intervals[0])+'_1'] = ema_indicator(df['close'], i, fillna=True)
 
     print_with_timestamp("Calculation of EMA Done", stime)
