@@ -1,4 +1,4 @@
-tensorflow==2.6.0
+tensorflow==2.6.1
 numpy==1.19.5
 matplotlib==3.2.2
 stockstats==0.3.2
